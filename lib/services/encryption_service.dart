@@ -8,15 +8,16 @@ class EncryptionService {
 
   static const String _keyStorageKey = 'encryption_key';
   static const String _ivStorageKey = 'encryption_key_iv';
+  static const String _cipherV2Prefix = 'v2:';
 
   Key? _key;
-  IV? _iv;
+  IV? _legacyIv;
 
   /// Инициализация ключа шифрования
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
     String? storedKey = prefs.getString(_keyStorageKey);
-    String? storedIv = prefs.getString(_ivStorageKey);
+    final storedIv = prefs.getString(_ivStorageKey);
     
     if (storedKey != null) {
       // Используем существующий ключ
@@ -29,37 +30,57 @@ class EncryptionService {
 
     if (storedIv != null) {
       // Используем существующий IV
-      _iv = IV.fromBase64(storedIv);
+      _legacyIv = IV.fromBase64(storedIv);
     } else {
       // Генерируем новый IV
-      _iv = IV.fromSecureRandom(16);
-      await prefs.setString(_ivStorageKey, _iv!.base64);
+      _legacyIv = IV.fromSecureRandom(16);
+      await prefs.setString(_ivStorageKey, _legacyIv!.base64);
     }
   }
 
   /// Шифрование пароля
   String encryptPassword(String password) {
-    if (_key == null || _iv == null) {
+    if (_key == null) {
       throw Exception('EncryptionService not initialized');
     }
 
+    final iv = IV.fromSecureRandom(16);
     final encrypter = Encrypter(AES(_key!));
-    final encrypted = encrypter.encrypt(password, iv: _iv!);
-    return encrypted.base64;
+    final encrypted = encrypter.encrypt(password, iv: iv);
+    return '$_cipherV2Prefix${iv.base64}:${encrypted.base64}';
   }
 
   /// Расшифровка пароля
   String decryptPassword(String encryptedPassword) {
-    if (_key == null || _iv == null) {
+    if (_key == null) {
       throw Exception('EncryptionService not initialized');
     }
 
     final encrypter = Encrypter(AES(_key!));
+
+    if (encryptedPassword.startsWith(_cipherV2Prefix)) {
+      final payload = encryptedPassword.substring(_cipherV2Prefix.length);
+      final separatorIndex = payload.indexOf(':');
+      if (separatorIndex <= 0 || separatorIndex >= payload.length - 1) {
+        throw Exception('Invalid encrypted payload format');
+      }
+
+      final ivBase64 = payload.substring(0, separatorIndex);
+      final cipherBase64 = payload.substring(separatorIndex + 1);
+      final iv = IV.fromBase64(ivBase64);
+      final encrypted = Encrypted.fromBase64(cipherBase64);
+      return encrypter.decrypt(encrypted, iv: iv);
+    }
+
+    if (_legacyIv == null) {
+      throw Exception('Legacy IV not found for backward compatibility decrypt');
+    }
+
     final encrypted = Encrypted.fromBase64(encryptedPassword);
-    return encrypter.decrypt(encrypted, iv: _iv!);
+    return encrypter.decrypt(encrypted, iv: _legacyIv!);
   }
 
   /// Проверка инициализации
-  bool get isInitialized => _key != null && _iv != null;
+  bool get isInitialized => _key != null;
 }
 
