@@ -1,9 +1,11 @@
+import 'dart:math';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/credential.dart';
 import '../models/folder.dart';
 import 'encryption_service.dart';
 
 class DatabaseHelper {
+  static final Random _random = Random();
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   factory DatabaseHelper() => _instance;
   DatabaseHelper._internal();
@@ -71,9 +73,6 @@ class DatabaseHelper {
     await _credentialsBox!.flush();
     
     // Дополнительная проверка - убеждаемся, что данные записались
-    // Ждем немного, чтобы данные успели записаться на диск
-    await Future.delayed(const Duration(milliseconds: 200));
-    
     // Проверяем, что данные действительно сохранились в памяти
     final saved = _credentialsBox!.get(id.toString());
     if (saved == null) {
@@ -188,9 +187,8 @@ class DatabaseHelper {
       credential.id.toString(),
       credentialToUpdate.toJson(),
     );
-    // Принудительно сохраняем на диск и ждем завершения
+    // Принудительно сохраняем на диск
     await _credentialsBox!.flush();
-    await Future.delayed(const Duration(milliseconds: 50));
     return credential.id!;
   }
 
@@ -198,9 +196,8 @@ class DatabaseHelper {
   Future<int> deleteCredential(int id) async {
     await _ensureInitialized();
     await _credentialsBox!.delete(id.toString());
-    // Принудительно сохраняем на диск и ждем завершения
+    // Принудительно сохраняем на диск
     await _credentialsBox!.flush();
-    await Future.delayed(const Duration(milliseconds: 50));
     return id;
   }
 
@@ -234,9 +231,6 @@ class DatabaseHelper {
     await _foldersBox!.flush();
     
     // Дополнительная проверка - убеждаемся, что данные записались
-    // Ждем немного, чтобы данные успели записаться на диск
-    await Future.delayed(const Duration(milliseconds: 200));
-    
     // Проверяем, что данные действительно сохранились в памяти
     final saved = _foldersBox!.get(id.toString());
     if (saved == null) {
@@ -326,9 +320,8 @@ class DatabaseHelper {
       folder.id.toString(),
       json,
     );
-    // Принудительно сохраняем на диск и ждем завершения
+    // Принудительно сохраняем на диск
     await _foldersBox!.flush();
-    await Future.delayed(const Duration(milliseconds: 50));
     
     return folder.id!;
   }
@@ -347,9 +340,8 @@ class DatabaseHelper {
     
     // Удаляем папку
     await _foldersBox!.delete(id.toString());
-    // Принудительно сохраняем на диск и ждем завершения
+    // Принудительно сохраняем на диск
     await _foldersBox!.flush();
-    await Future.delayed(const Duration(milliseconds: 50));
     return id;
   }
 
@@ -401,6 +393,8 @@ class DatabaseHelper {
   }
 
   int _generateId() {
-    return DateTime.now().millisecondsSinceEpoch;
+    final timestampMicros = DateTime.now().microsecondsSinceEpoch;
+    final randomTail = _random.nextInt(1000);
+    return (timestampMicros * 1000) + randomTail;
   }
 }

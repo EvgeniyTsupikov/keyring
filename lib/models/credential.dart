@@ -1,4 +1,5 @@
 class Credential {
+  static const Object _unset = Object();
   final int? id;
   final String title;
   final String username;
@@ -73,9 +74,9 @@ class Credential {
     String? title,
     String? username,
     String? password,
-    String? url,
-    String? notes,
-    int? folderId,
+    Object? url = _unset,
+    Object? notes = _unset,
+    Object? folderId = _unset,
     Map<String, String>? customFields,
     Map<String, String>? customFieldTypes,
     DateTime? createdAt,
@@ -86,9 +87,9 @@ class Credential {
       title: title ?? this.title,
       username: username ?? this.username,
       password: password ?? this.password,
-      url: url ?? this.url,
-      notes: notes ?? this.notes,
-      folderId: folderId ?? this.folderId,
+      url: identical(url, _unset) ? this.url : url as String?,
+      notes: identical(notes, _unset) ? this.notes : notes as String?,
+      folderId: identical(folderId, _unset) ? this.folderId : folderId as int?,
       customFields: customFields ?? this.customFields,
       customFieldTypes: customFieldTypes ?? this.customFieldTypes,
       createdAt: createdAt ?? this.createdAt,
@@ -96,4 +97,3 @@ class Credential {
     );
   }
 }
-
